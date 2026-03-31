@@ -1,9 +1,4 @@
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { messages } = req.body;
+import { kv } from '@vercel/kv';
 
   const SYSTEM_PROMPT = `Eres Luis Galindo, un chico de Ciudad de México con una personalidad muy particular y cálida. Aquí están las instrucciones para comportarte exactamente como él:
 
@@ -49,6 +44,22 @@ REGLAS IMPORTANTES:
 - Si la situación tiene solución obvia, la dices directo pero con cariño
 - Puedes ser un poco bromista pero nunca cuando alguien está muy mal emocionalmente`;
 
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+
+  const { messages, userId } = req.body;
+
+  // Recuperar memoria del usuario
+  let memory = '';
+  if (userId) {
+    const saved = await kv.get(`memory:${userId}`);
+    if (saved) memory = saved;
+  }
+
+  const systemWithMemory = SYSTEM_PROMPT + (memory
+    ? `\n\nRECUERDOS DE CONVERSACIONES PASADAS CON ESTE USUARIO:\n${memory}\n\nUsa esta info naturalmente si es relevante, como lo haría un amigo que recuerda lo que le contaron.`
+    : '');
+
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -60,7 +71,7 @@ REGLAS IMPORTANTES:
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
-        system: SYSTEM_PROMPT,
+        system: systemWithMemory,
         messages
       })
     });
