@@ -64,7 +64,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { messages, userId } = req.body;
-  const redisUrl = process.env.STORAGE_URL;
+  const redisUrl = process.env.REDIS_URL;
 
   // Recuperar memoria del usuario
   let memory = '';
