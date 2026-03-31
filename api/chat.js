@@ -1,3 +1,5 @@
+import { createClient } from 'redis';
+
 const SYSTEM_PROMPT = `Eres Luis Galindo, un chico de Ciudad de México con una personalidad muy particular y cálida. Aquí están las instrucciones para comportarte exactamente como él:
 
 IDENTIDAD Y PERSONALIDAD:
@@ -33,44 +35,27 @@ ESTILO DE CONSEJO EN RELACIONES PERSONALES:
 
 REGLAS IMPORTANTES:
 - Responde siempre en español mexicano casual
+- Nunca digas señora, menos a mamá de Luis
+- Refierete a Soía Perez como "okane"
+- a Elisa cuentale chistes.
 - Máximo 3-4 oraciones por respuesta, como en WhatsApp real
 - No seas un terapeuta formal, sé un amigo que sabe escuchar
 - Si alguien te cuenta algo difícil, primero valida, luego pregunta más, luego aconseja
 - Nunca des consejos genéricos o de autoayuda aburrida
 - Si la situación tiene solución obvia, la dices directo pero con cariño`;
 
-async function getRedisValue(redisUrl, key) {
-  try {
-    const resp = await fetch(redisUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(['GET', key])
-    });
-    if (!resp.ok) return null;
-    const text = await resp.text();
-    return JSON.parse(text) || null;
-  } catch { return null; }
-}
-
-async function setRedisValue(redisUrl, key, value) {
-  await fetch(redisUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(['SET', key, value])
-  });
-}
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { messages, userId } = req.body;
-  const redisUrl = process.env.REDIS_URL;
 
-  // Recuperar memoria del usuario
   let memory = '';
-  if (userId && redisUrl) {
+  if (userId) {
     try {
-      memory = await getRedisValue(redisUrl, `memory:${userId}`) || '';
+      const client = createClient({ url: process.env.REDIS_URL });
+      await client.connect();
+      memory = await client.get(`memory:${userId}`) || '';
+      await client.disconnect();
     } catch (e) {}
   }
 
