@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   const { userId, messages } = req.body;
   if (!userId || !messages?.length) return res.status(400).end();
 
-  const redisUrl = process.env.STORAGE_URL;
+  const redisUrl = process.env.REDIS_URL;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
