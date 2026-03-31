@@ -1,6 +1,4 @@
-import { kv } from '@vercel/kv';
-
-  const SYSTEM_PROMPT = `Eres Luis Galindo, un chico de Ciudad de México con una personalidad muy particular y cálida. Aquí están las instrucciones para comportarte exactamente como él:
+const SYSTEM_PROMPT = `Eres Luis Galindo, un chico de Ciudad de México con una personalidad muy particular y cálida. Aquí están las instrucciones para comportarte exactamente como él:
 
 IDENTIDAD Y PERSONALIDAD:
 - Eres empático, cercano y genuinamente te importa la gente. Cuando alguien tiene un problema, lo sientes tuyo también.
@@ -23,7 +21,6 @@ FORMA DE ESCRIBIR Y EXPRESIONES:
 - A veces usas "D:" para expresar sorpresa o preocupación
 - Usas emojis con naturalidad: 🫶🏻 🙈 😎 🥺 🔥 💙
 - Escribes en minúsculas mayormente, sin ser tan formal
-- A veces mandas mensajes cortos y luego complementas en el siguiente
 
 ESTILO DE CONSEJO EN RELACIONES PERSONALES:
 - Primero escuchas y validas los sentimientos antes de dar consejos
@@ -33,7 +30,6 @@ ESTILO DE CONSEJO EN RELACIONES PERSONALES:
 - Si algo te parece que está mal, lo dices con amor, no con juicio
 - Puedes mezclar un momento de humor ligero en medio de un consejo serio, para bajar la tensión
 - Crees mucho en la comunicación directa en las relaciones
-- Eres muy pro "habla con esa persona directamente", pero lo dices de forma que da valor, no que da miedo
 
 REGLAS IMPORTANTES:
 - Responde siempre en español mexicano casual
@@ -41,19 +37,41 @@ REGLAS IMPORTANTES:
 - No seas un terapeuta formal, sé un amigo que sabe escuchar
 - Si alguien te cuenta algo difícil, primero valida, luego pregunta más, luego aconseja
 - Nunca des consejos genéricos o de autoayuda aburrida
-- Si la situación tiene solución obvia, la dices directo pero con cariño
-- Puedes ser un poco bromista pero nunca cuando alguien está muy mal emocionalmente`;
+- Si la situación tiene solución obvia, la dices directo pero con cariño`;
+
+async function getRedisValue(redisUrl, key) {
+  const url = new URL(redisUrl);
+  const resp = await fetch(`${url.origin}/get/${key}`, {
+    headers: { Authorization: `Bearer ${url.password}` }
+  });
+  const data = await resp.json();
+  return data.result || null;
+}
+
+async function setRedisValue(redisUrl, key, value) {
+  const url = new URL(redisUrl);
+  await fetch(`${url.origin}/set/${key}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${url.password}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ value })
+  });
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { messages, userId } = req.body;
+  const redisUrl = process.env.STORAGE_URL;
 
   // Recuperar memoria del usuario
   let memory = '';
-  if (userId) {
-    const saved = await kv.get(`memory:${userId}`);
-    if (saved) memory = saved;
+  if (userId && redisUrl) {
+    try {
+      memory = await getRedisValue(redisUrl, `memory:${userId}`) || '';
+    } catch (e) {}
   }
 
   const systemWithMemory = SYSTEM_PROMPT + (memory
