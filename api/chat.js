@@ -40,23 +40,23 @@ REGLAS IMPORTANTES:
 - Si la situación tiene solución obvia, la dices directo pero con cariño`;
 
 async function getRedisValue(redisUrl, key) {
-  const url = new URL(redisUrl);
-  const resp = await fetch(`${url.origin}/get/${key}`, {
-    headers: { Authorization: `Bearer ${url.password}` }
-  });
-  const data = await resp.json();
-  return data.result || null;
+  try {
+    const resp = await fetch(redisUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(['GET', key])
+    });
+    if (!resp.ok) return null;
+    const text = await resp.text();
+    return JSON.parse(text) || null;
+  } catch { return null; }
 }
 
 async function setRedisValue(redisUrl, key, value) {
-  const url = new URL(redisUrl);
-  await fetch(`${url.origin}/set/${key}`, {
+  await fetch(redisUrl, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${url.password}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ value })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(['SET', key, value])
   });
 }
 
